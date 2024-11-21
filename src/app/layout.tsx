@@ -26,10 +26,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <body>
                 <ClerkProvider>
                     <TRPCReactProvider>
-                            <TooltipProvider>
-                                <Toaster />
-                                {children}
-                            </TooltipProvider>
+                        <TooltipProvider>
+                            <Toaster />
+                            {children}
+                        </TooltipProvider>
                     </TRPCReactProvider>
                 </ClerkProvider>
             </body>

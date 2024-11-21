@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { toPng } from 'html-to-image'
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
+import { Tooltip, TooltipProvider } from '@/components/ui/tooltip'
 import { fetchVercelData, saveVercelStats } from '@/app/actions'
 import type { VercelData } from '@/app/types'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -141,7 +141,8 @@ export function VercelReceiptForm() {
                         <Checkbox
                             id="saveStats"
                             checked={saveStats}
-                            onCheckedChange={(checked) => setSaveStats(checked as boolean)}
+                            onCheckedChange={(checked) => setSaveStats(!!checked)}
+                            className="border-white data-[state=checked]:bg-white data-[state=checked]:text-black"
                         />
                         <label htmlFor="saveStats" className="cursor-pointer text-sm text-gray-300">
                             Save my stats to be shown on the public leaderboard
@@ -151,12 +152,9 @@ export function VercelReceiptForm() {
 
                 <div className="flex items-center">
                     <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger>
-                                <Info className="cursor-pointer text-gray-500" size={20} />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>
+                        <Tooltip
+                            content={
+                                <span>
                                     Get your API token from{' '}
                                     <a
                                         href="https://vercel.com/account/settings/tokens"
@@ -167,8 +165,10 @@ export function VercelReceiptForm() {
                                         Vercel
                                     </a>
                                     . Set scope to full account, and expiration to 1 day.
-                                </p>
-                            </TooltipContent>
+                                </span>
+                            }
+                        >
+                            <Info className="cursor-pointer text-gray-500" size={20} />
                         </Tooltip>
                     </TooltipProvider>
                 </div>
