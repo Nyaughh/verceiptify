@@ -1,3 +1,3 @@
-# Minimalist T3 App with Clerk
+# Verceipts - Vercel Receipts
 
 
