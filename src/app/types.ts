@@ -9,6 +9,7 @@ export interface Project {
     id: string
     name: string
     latestDeployments: any[]
+    totalDeployments?: number
 }
 
 export interface Team {
@@ -20,4 +21,9 @@ export interface VercelData {
     user: User
     projects: Project[]
     teams: Team[]
+}
+
+export interface DisplayOptions {
+    maxProjects?: number
+    hideEmail: boolean
 }

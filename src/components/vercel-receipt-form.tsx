@@ -9,9 +9,11 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { toPng } from 'html-to-image'
 import { Tooltip, TooltipProvider } from '@/components/ui/tooltip'
 import { fetchVercelData, saveVercelStats } from '@/app/actions'
-import type { VercelData } from '@/app/types'
+import type { Project, VercelData } from '@/app/types'
 import { Checkbox } from '@/components/ui/checkbox'
 import Link from 'next/link'
+import { Label } from '@/components/ui/label'
+import type { DisplayOptions } from '@/app/types'
 
 export function VercelReceiptForm() {
     const [userToken, setUserToken] = useState<string>('')
@@ -22,6 +24,10 @@ export function VercelReceiptForm() {
     const [error, setError] = useState<string | null>(null)
     const [transactionId, setTransactionId] = useState<string>('')
     const [saveStats, setSaveStats] = useState(false)
+    const [displayOptions, setDisplayOptions] = useState<DisplayOptions>({
+        maxProjects: undefined,
+        hideEmail: false
+    })
 
     useEffect(() => {
         if (userToken) {
@@ -97,6 +103,29 @@ export function VercelReceiptForm() {
           )
         : null
 
+    const getFilteredProjects = (projects: Project[]) => {
+        if (!displayOptions.maxProjects) return projects
+
+        const visibleProjects = projects.slice(0, displayOptions.maxProjects)
+        const hiddenProjects = projects.slice(displayOptions.maxProjects)
+
+        if (hiddenProjects.length === 0) return visibleProjects
+
+        const totalHiddenDeployments = hiddenProjects.reduce(
+            (acc, proj) => acc + (proj.latestDeployments?.length || 0),
+            0
+        )
+        return [
+            ...visibleProjects,
+            {
+                id: 'hidden-summary',
+                name: `...and ${hiddenProjects.length} more projects (${totalHiddenDeployments} total deploys)`,
+                latestDeployments: [],
+                isSummary: true
+            }
+        ]
+    }
+
     return (
         <div className="flex w-full max-w-[380px] flex-col items-center space-y-4">
             {!submitted && (
@@ -148,6 +177,45 @@ export function VercelReceiptForm() {
                             Save my stats to be shown on the public leaderboard
                         </label>
                     </div>
+
+                    {vercelData && (
+                        <div className="mt-4 space-y-4">
+                            <div className="flex flex-col gap-4 rounded-md border border-gray-800 p-4">
+                                <div className="flex items-center space-x-2">
+                                    <Checkbox
+                                        id="hideEmail"
+                                        checked={displayOptions.hideEmail}
+                                        onCheckedChange={(checked) =>
+                                            setDisplayOptions((prev) => ({ ...prev, hideEmail: checked as boolean }))
+                                        }
+                                        className="border-white data-[state=checked]:bg-white data-[state=checked]:text-black"
+                                    />
+                                    <Label htmlFor="hideEmail" className="text-gray-300">
+                                        Hide Email
+                                    </Label>
+                                </div>
+
+                                <div className="flex items-center space-x-2">
+                                    <Input
+                                        type="number"
+                                        id="maxProjects"
+                                        placeholder="Max projects to show"
+                                        className="w-40 rounded-md border border-gray-800 bg-gray-900 text-white placeholder-gray-400"
+                                        value={displayOptions.maxProjects || ''}
+                                        onChange={(e) =>
+                                            setDisplayOptions((prev) => ({
+                                                ...prev,
+                                                maxProjects: e.target.value ? parseInt(e.target.value) : undefined
+                                            }))
+                                        }
+                                    />
+                                    <Label htmlFor="maxProjects" className="text-gray-300">
+                                        Max Projects
+                                    </Label>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </form>
 
                 <div className="flex items-center">
@@ -196,7 +264,7 @@ export function VercelReceiptForm() {
                                         <div className="space-y-1 text-center">
                                             <h1 className="text-xl font-bold tracking-tight">VERCEL RECEIPT</h1>
                                             <p>Generated for: {vercelData?.user.name}</p>
-                                            <p>Email: {vercelData?.user.email}</p>
+                                            {!displayOptions.hideEmail && <p>Email: {vercelData?.user.email}</p>}
                                             <p>Username: {vercelData?.user.username}</p>
                                         </div>
 
@@ -212,14 +280,23 @@ export function VercelReceiptForm() {
                                                 <span>Deployments</span>
                                             </div>
 
-                                            {vercelData?.projects.map((project) => (
-                                                <div key={project.id} className="flex justify-between">
-                                                    <span className="w-1/2 truncate">{project.name}</span>
-                                                    <span className="w-1/3 text-right">
-                                                        {project.latestDeployments.length}
-                                                    </span>
-                                                </div>
-                                            ))}
+                                            {vercelData &&
+                                                getFilteredProjects(vercelData.projects).map((project) => (
+                                                    <div key={project.id} className="flex justify-between">
+                                                        <span
+                                                            className={
+                                                                'isSummary' in project ? 'w-full' : 'w-1/2 truncate'
+                                                            }
+                                                        >
+                                                            {project.name}
+                                                        </span>
+                                                        {!('isSummary' in project) && (
+                                                            <span className="w-1/3 text-right">
+                                                                {project.latestDeployments.length}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                ))}
 
                                             <div className="flex justify-between border-t border-dashed border-gray-300 pt-2 font-bold">
                                                 <span>Total Projects Owned</span>

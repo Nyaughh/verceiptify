@@ -9,8 +9,8 @@ import { Toaster } from 'sonner'
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
-    title: 'T3 Starter',
-    description: 'T3 Starter',
+    title: 'Vercel Receipts',
+    description: 'Vercel Receipts',
     icons: [{ rel: 'icon', url: '/favicon.ico' }]
 }
 
