@@ -15,6 +15,7 @@ import Link from 'next/link'
 import { Label } from '@/components/ui/label'
 import type { DisplayOptions } from '@/app/types'
 import { ChevronUp, ChevronDown } from 'lucide-react'
+import { format, parseISO } from 'date-fns'
 
 export function VercelReceiptForm() {
     const [userToken, setUserToken] = useState<string>('')
@@ -122,6 +123,38 @@ export function VercelReceiptForm() {
               (prev?.latestDeployments.length ?? 0) > (current?.latestDeployments.length ?? 0) ? prev : current
           )
         : null
+
+    // Calculate total failed deployments
+    const totalFailedDeployments =
+        vercelData?.projects.reduce((acc, project) => acc + (project.failedDeploymentsCount || 0), 0) ?? 0
+
+    // Calculate failed deployment percentage
+    const failedDeploymentPercentage =
+        totalDeployments > 0 ? ((totalFailedDeployments / totalDeployments) * 100).toFixed(2) : '0.00'
+
+    // Find the project with the most failed deployments
+    const projectWithMostFailedDeployments = vercelData?.projects.length
+        ? vercelData.projects.reduce((prev, current) =>
+              (prev?.failedDeploymentsCount ?? 0) > (current?.failedDeploymentsCount ?? 0) ? prev : current
+          )
+        : null
+
+    // Calculate the most active day of the week
+    const dayCounts = vercelData?.projects.reduce(
+        (acc, project) => {
+            project.latestDeployments.forEach((deployment) => {
+                const createdAtDate = new Date(deployment.createdAt)
+                const day = format(createdAtDate, 'EEEE')
+                acc[day] = (acc[day] || 0) + 1
+            })
+            return acc
+        },
+        {} as Record<string, number>
+    )
+
+    const mostActiveDay = dayCounts
+        ? Object.entries(dayCounts).reduce((prev, current) => (current[1] > prev[1] ? current : prev))[0]
+        : 'N/A'
 
     const getFilteredProjects = (projects: Project[]) => {
         if (!displayOptions.maxProjects) return projects
@@ -377,6 +410,26 @@ export function VercelReceiptForm() {
                                         <div className="flex justify-between font-bold">
                                             <span>Most Active Project</span>
                                             <span>{mostActiveProject?.name || 'N/A'}</span>
+                                        </div>
+
+                                        <div className="flex justify-between font-bold">
+                                            <span>Total Failed Deployments</span>
+                                            <span>
+                                                {totalFailedDeployments} ({failedDeploymentPercentage}%)
+                                            </span>
+                                        </div>
+
+                                        <div className="flex justify-between font-bold">
+                                            <span>Most Failed Deployments</span>
+                                            <span>
+                                                {projectWithMostFailedDeployments?.name || 'N/A'} (
+                                                {projectWithMostFailedDeployments?.failedDeploymentsCount || 0})
+                                            </span>
+                                        </div>
+
+                                        <div className="flex justify-between font-bold">
+                                            <span>Most Active Day</span>
+                                            <span>{mostActiveDay}</span>
                                         </div>
                                     </div>
 

@@ -10,6 +10,7 @@ export interface Project {
     name: string
     latestDeployments: any[]
     totalDeployments?: number
+    failedDeploymentsCount?: number
 }
 
 export interface Team {

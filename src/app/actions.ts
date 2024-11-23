@@ -31,10 +31,11 @@ async function fetchProjects(userToken: string) {
     // Get deployments for each project
     const projectsWithDeployments = await Promise.all(
         results.map(async (project) => {
-            const deployments = await getDeployments(userToken, project.id)
+            const { deployments, failedCount } = await getDeployments(userToken, project.id)
             return {
                 ...project,
-                latestDeployments: deployments
+                latestDeployments: deployments,
+                failedDeploymentsCount: failedCount
             }
         })
     )
@@ -139,10 +140,14 @@ interface VercelDeployment {
     url: string
 }
 
-export async function getDeployments(userToken: string, appId: string): Promise<VercelDeployment[]> {
+export async function getDeployments(
+    userToken: string,
+    appId: string
+): Promise<{ deployments: VercelDeployment[]; failedCount: number }> {
     let allDeployments: VercelDeployment[] = []
     let hasMore = true
     let page = 1
+    let failedCount = 0
 
     while (hasMore) {
         const response = await fetch(
@@ -162,9 +167,14 @@ export async function getDeployments(userToken: string, appId: string): Promise<
         const data = await response.json()
         allDeployments = [...allDeployments, ...data.deployments]
 
+        // Count failed deployments
+        failedCount += data.deployments.filter(
+            (deployment: VercelDeployment) => deployment.readyState === 'ERROR'
+        ).length
+
         hasMore = data.pagination?.hasMore || false
         page++
     }
 
-    return allDeployments
+    return { deployments: allDeployments, failedCount }
 }
