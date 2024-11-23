@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { Card } from '@/components/ui/card'
-import { Printer, Info, Loader } from 'lucide-react'
+import { Printer, Info, Loader, ArrowUpDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -16,6 +16,8 @@ import type { DisplayOptions } from '@/app/types'
 import { ChevronUp, ChevronDown } from 'lucide-react'
 import { format } from 'date-fns'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { ArrowDownWideNarrow, ArrowUpWideNarrow, Text, Calendar } from 'lucide-react'
 export function VercelReceiptForm() {
     const [userToken, setUserToken] = useState<string>('')
     const [vercelData, setVercelData] = useState<VercelData | null>(() => {
@@ -348,34 +350,6 @@ export function VercelReceiptForm() {
                             </label>
                         </div>
                         <div className="flex w-full items-center justify-between space-x-4">
-                            <Select
-                                value={`${displayOptions.sortBy}-${displayOptions.sortOrder}`}
-                                onValueChange={(value) => {
-                                    const [sortBy, sortOrder] = value.split('-')
-                                    setDisplayOptions(
-                                        (prev) =>
-                                            ({
-                                                ...prev,
-                                                sortBy,
-                                                sortOrder
-                                            }) as DisplayOptions
-                                    )
-                                }}
-                            >
-                                <SelectTrigger className="w-[180px] bg-gray-900 text-white">
-                                    <SelectValue placeholder="Sort by..." />
-                                </SelectTrigger>
-                                <SelectContent className="border-gray-800 bg-gray-900 text-white">
-                                    <SelectGroup>
-                                        <SelectItem value="name-desc">Name (Z-A)</SelectItem>
-                                        <SelectItem value="deployments-asc">Deployments (New to Old)</SelectItem>
-                                        <SelectItem value="deployments-desc">Deployments (Old to New)</SelectItem>
-                                        <SelectItem value="total-asc">Total Deployments (Asc)</SelectItem>
-                                        <SelectItem value="total-desc">Total Deployments (Desc)</SelectItem>
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
-
                             <div className="relative w-40">
                                 <Input
                                     type="text"
@@ -407,7 +381,7 @@ export function VercelReceiptForm() {
                                         }
                                         className="text-white hover:text-gray-400"
                                     >
-                                        <ChevronUp size={12} />
+                                        <ChevronUp size={14} />
                                     </button>
                                     <button
                                         type="button"
@@ -419,10 +393,61 @@ export function VercelReceiptForm() {
                                         }
                                         className="text-white hover:text-gray-400"
                                     >
-                                        <ChevronDown size={12} />
+                                        <ChevronDown size={14} />
                                     </button>
                                 </div>
                             </div>
+
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="ghost" className="h-10 px-2 text-gray-400 hover:text-white">
+                                        <ArrowUpDown size={16} />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-44 bg-gray-900 p-1">
+                                    <div className="space-y-1">
+                                        <Button
+                                            variant="ghost"
+                                            className="w-full justify-start text-xs text-gray-300 hover:bg-gray-800 hover:text-white"
+                                            onClick={() =>
+                                                setDisplayOptions((prev) => ({
+                                                    ...prev,
+                                                    sortBy: 'name',
+                                                    sortOrder: 'asc'
+                                                }))
+                                            }
+                                        >
+                                            Name A-Z
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            className="w-full justify-start text-xs text-gray-300 hover:bg-gray-800 hover:text-white"
+                                            onClick={() =>
+                                                setDisplayOptions((prev) => ({
+                                                    ...prev,
+                                                    sortBy: 'total',
+                                                    sortOrder: 'desc'
+                                                }))
+                                            }
+                                        >
+                                            Most deployments
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            className="w-full justify-start text-xs text-gray-300 hover:bg-gray-800 hover:text-white"
+                                            onClick={() =>
+                                                setDisplayOptions((prev) => ({
+                                                    ...prev,
+                                                    sortBy: 'date',
+                                                    sortOrder: 'desc'
+                                                }))
+                                            }
+                                        >
+                                            Latest deployments
+                                        </Button>
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
 
                             <Button
                                 onClick={clearReceipt}
@@ -447,7 +472,7 @@ export function VercelReceiptForm() {
                                 <div className="space-y-4 p-6">
                                     <div className="space-y-1 text-center">
                                         <h1 className="text-xl font-bold tracking-tight">VERCEL RECEIPT</h1>
-                                        <p>Generated for: {vercelData?.user.name}</p>
+                                        {vercelData?.user.name && <p>Generated for: {vercelData?.user.name}</p>}
                                         {!displayOptions.hideEmail && <p>Email: {vercelData?.user.email}</p>}
                                         <p>Username: {vercelData?.user.username}</p>
                                     </div>
@@ -561,6 +586,21 @@ export function VercelReceiptForm() {
                     )}
                 </ScrollArea>
             )}
+
+            {/* Footer Section */}
+            <footer className="mt-8 w-full text-center text-sm text-gray-400">
+                <p>
+                    Support my work on{' '}
+                    <a
+                        href="https://github.com/sponsors/nyaughh"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-500 hover:underline"
+                    >
+                        GitHub
+                    </a>
+                </p>
+            </footer>
         </div>
     )
 }
