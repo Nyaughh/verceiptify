@@ -590,6 +590,17 @@ export function VercelReceiptForm() {
             {/* Footer Section */}
             <footer className="mt-8 w-full text-center text-sm text-gray-400">
                 <p>
+                    Share your Verceipts on{' '}
+                    <a
+                        href="https://x.com/Nyaughh_/status/1860200737537667231"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-500 hover:underline"
+                    >
+                        Twitter
+                    </a>
+                </p>
+                <p>
                     Support my work on{' '}
                     <a
                         href="https://github.com/sponsors/nyaughh"
