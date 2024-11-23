@@ -137,19 +137,17 @@ interface VercelDeployment {
     undeleted?: number
     url: string
 }
-
 export async function getDeployments(
     userToken: string,
     appId: string
 ): Promise<{ deployments: VercelDeployment[]; failedCount: number }> {
     let allDeployments: VercelDeployment[] = []
-    let hasMore = true
-    let page = 1
+    let next = true
     let failedCount = 0
 
-    while (hasMore) {
+    while (next) {
         const response = await fetch(
-            `https://api.vercel.com/v6/deployments?projectId=${appId}&limit=100&page=${page}`,
+            `https://api.vercel.com/v6/deployments?projectId=${appId}&limit=100&until=${next}`,
             {
                 headers: {
                     Authorization: `Bearer ${userToken}`
@@ -157,7 +155,6 @@ export async function getDeployments(
                 method: 'GET'
             }
         )
-
         if (!response.ok) {
             throw new Error('Failed to fetch deployments')
         }
@@ -169,9 +166,9 @@ export async function getDeployments(
         failedCount += data.deployments.filter(
             (deployment: VercelDeployment) => deployment.readyState === 'ERROR'
         ).length
-
-        hasMore = data.pagination?.hasMore || false
-        page++
+        
+        next = data.pagination?.next || null;
+        
     }
 
     return { deployments: allDeployments, failedCount }
