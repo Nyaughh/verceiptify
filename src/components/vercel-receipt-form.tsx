@@ -12,46 +12,61 @@ import { fetchVercelData, saveVercelStats } from '@/app/actions'
 import type { Project, VercelData } from '@/app/types'
 import { Checkbox } from '@/components/ui/checkbox'
 import Link from 'next/link'
-import { Label } from '@/components/ui/label'
 import type { DisplayOptions } from '@/app/types'
 import { ChevronUp, ChevronDown } from 'lucide-react'
-import { format, parseISO } from 'date-fns'
-
+import { format } from 'date-fns'
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 export function VercelReceiptForm() {
     const [userToken, setUserToken] = useState<string>('')
     const [vercelData, setVercelData] = useState<VercelData | null>(() => {
-        const savedData = localStorage.getItem('vercelData')
-        return savedData ? JSON.parse(savedData) : null
+        if (typeof window !== 'undefined') {
+            const savedData = localStorage.getItem('vercelData')
+            return savedData ? JSON.parse(savedData) : null
+        }
+        return null
     })
     const [loading, setLoading] = useState(false)
     const [submitted, setSubmitted] = useState(() => {
-        return localStorage.getItem('submitted') === 'true'
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('submitted') === 'true'
+        }
+        return false
     })
     const receiptRef = useRef<HTMLDivElement>(null)
     const [error, setError] = useState<string | null>(null)
     const [transactionId, setTransactionId] = useState<string>(() => {
-        return localStorage.getItem('transactionId') || ''
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('transactionId') || ''
+        }
+        return ''
     })
     const [saveStats, setSaveStats] = useState(false)
     const [displayOptions, setDisplayOptions] = useState<DisplayOptions>({
         maxProjects: undefined,
-        hideEmail: true
+        hideEmail: true,
+        hideTeams: false,
+        sortBy: 'deployments',
+        sortOrder: 'asc'
     })
 
     useEffect(() => {
         if (userToken && !transactionId) {
             const newTransactionId = `TRX-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
             setTransactionId(newTransactionId)
-            localStorage.setItem('transactionId', newTransactionId)
+            if (typeof window !== 'undefined') {
+                localStorage.setItem('transactionId', newTransactionId)
+            }
         }
     }, [userToken, transactionId])
 
     useEffect(() => {
-        localStorage.setItem('submitted', submitted.toString())
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('submitted', submitted.toString())
+        }
     }, [submitted])
 
     useEffect(() => {
-        if (vercelData) {
+        if (vercelData && typeof window !== 'undefined') {
             localStorage.setItem('vercelData', JSON.stringify(vercelData))
         }
     }, [vercelData])
@@ -157,10 +172,40 @@ export function VercelReceiptForm() {
         : 'N/A'
 
     const getFilteredProjects = (projects: Project[]) => {
-        if (!displayOptions.maxProjects) return projects
+        let sortedProjects = [...projects]
 
-        const visibleProjects = projects.slice(0, displayOptions.maxProjects)
-        const hiddenProjects = projects.slice(displayOptions.maxProjects)
+        // Sort projects based on selected criteria
+        console.log(displayOptions)
+        switch (displayOptions.sortBy) {
+            case 'name':
+                sortedProjects.sort((a, b) => {
+                    return displayOptions.sortOrder === 'asc'
+                        ? a.name.localeCompare(b.name)
+                        : b.name.localeCompare(a.name)
+                })
+                break
+            case 'deployments':
+                sortedProjects.sort((a, b) => {
+                    const latestA = new Date(a.latestDeployments[0]?.createdAt || 0).getTime()
+                    const latestB = new Date(b.latestDeployments[0]?.createdAt || 0).getTime()
+                    return displayOptions.sortOrder === 'asc'
+                        ? latestB - latestA // Newer first
+                        : latestA - latestB // Older first
+                })
+                break
+            case 'total':
+                sortedProjects.sort((a, b) => {
+                    return displayOptions.sortOrder === 'asc'
+                        ? a.latestDeployments.length - b.latestDeployments.length
+                        : b.latestDeployments.length - a.latestDeployments.length
+                })
+                break
+        }
+
+        if (!displayOptions.maxProjects) return sortedProjects
+
+        const visibleProjects = sortedProjects.slice(0, displayOptions.maxProjects)
+        const hiddenProjects = sortedProjects.slice(displayOptions.maxProjects)
 
         if (hiddenProjects.length === 0) return visibleProjects
 
@@ -183,9 +228,11 @@ export function VercelReceiptForm() {
         setSubmitted(false)
         setVercelData(null)
         setTransactionId('')
-        localStorage.removeItem('submitted')
-        localStorage.removeItem('vercelData')
-        localStorage.removeItem('transactionId')
+        if (typeof window !== 'undefined') {
+            localStorage.removeItem('submitted')
+            localStorage.removeItem('vercelData')
+            localStorage.removeItem('transactionId')
+        }
     }
 
     return (
@@ -287,7 +334,48 @@ export function VercelReceiptForm() {
                                 Hide email in receipt
                             </label>
                         </div>
-                        <div className="flex w-full items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                            <Checkbox
+                                id="hideTeams"
+                                checked={displayOptions.hideTeams}
+                                onCheckedChange={(checked) =>
+                                    setDisplayOptions((prev) => ({ ...prev, hideTeams: checked as boolean }))
+                                }
+                                className="border-white data-[state=checked]:bg-white data-[state=checked]:text-black"
+                            />
+                            <label htmlFor="hideTeams" className="cursor-pointer text-sm text-gray-300">
+                                Hide teams section
+                            </label>
+                        </div>
+                        <div className="flex w-full items-center justify-between space-x-4">
+                            <Select
+                                value={`${displayOptions.sortBy}-${displayOptions.sortOrder}`}
+                                onValueChange={(value) => {
+                                    const [sortBy, sortOrder] = value.split('-')
+                                    setDisplayOptions(
+                                        (prev) =>
+                                            ({
+                                                ...prev,
+                                                sortBy,
+                                                sortOrder
+                                            }) as DisplayOptions
+                                    )
+                                }}
+                            >
+                                <SelectTrigger className="w-[180px] bg-gray-900 text-white">
+                                    <SelectValue placeholder="Sort by..." />
+                                </SelectTrigger>
+                                <SelectContent className="border-gray-800 bg-gray-900 text-white">
+                                    <SelectGroup>
+                                        <SelectItem value="name-desc">Name (Z-A)</SelectItem>
+                                        <SelectItem value="deployments-asc">Deployments (New to Old)</SelectItem>
+                                        <SelectItem value="deployments-desc">Deployments (Old to New)</SelectItem>
+                                        <SelectItem value="total-asc">Total Deployments (Asc)</SelectItem>
+                                        <SelectItem value="total-desc">Total Deployments (Desc)</SelectItem>
+                                    </SelectGroup>
+                                </SelectContent>
+                            </Select>
+
                             <div className="relative w-40">
                                 <Input
                                     type="text"
@@ -433,19 +521,21 @@ export function VercelReceiptForm() {
                                         </div>
                                     </div>
 
-                                    <div className="space-y-1">
-                                        <h2 className="font-bold">Teams</h2>
-                                        {vercelData?.teams.map((team) => (
-                                            <div key={team.id} className="flex justify-between">
-                                                <span className="w-1/2 truncate">{team.name}</span>
-                                            </div>
-                                        ))}
+                                    {!displayOptions.hideTeams && (
+                                        <div className="space-y-1">
+                                            <h2 className="font-bold">Teams</h2>
+                                            {vercelData?.teams.map((team) => (
+                                                <div key={team.id} className="flex justify-between">
+                                                    <span className="w-1/2 truncate">{team.name}</span>
+                                                </div>
+                                            ))}
 
-                                        <div className="flex justify-between font-bold">
-                                            <span>Total Teams</span>
-                                            <span>{vercelData?.teams.length}</span>
+                                            <div className="flex justify-between font-bold">
+                                                <span>Total Teams</span>
+                                                <span>{vercelData?.teams.length}</span>
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}
 
                                     <div className="flex justify-center">
                                         <img src="/barcode.png" alt="Barcode" className="w-30 h-30" />

@@ -40,8 +40,6 @@ async function fetchProjects(userToken: string) {
         })
     )
 
-    console.log(projectsWithDeployments)
-
     return projectsWithDeployments
 }
 

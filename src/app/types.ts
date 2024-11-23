@@ -27,4 +27,7 @@ export interface VercelData {
 export interface DisplayOptions {
     maxProjects?: number
     hideEmail: boolean
+    hideTeams: boolean
+    sortBy: string
+    sortOrder?: string
 }
