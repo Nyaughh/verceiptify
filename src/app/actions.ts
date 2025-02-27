@@ -3,38 +3,36 @@
 import { headers } from 'next/headers'
 import type { VercelData } from './types'
 import { PrismaClient } from '@prisma/client'
+import { Vercel } from '@vercel/sdk'
 
 const prisma = new PrismaClient()
 
-async function fetchProjects(userToken: string) {
-    const results: any[] = []
-    let url = 'https://api.vercel.com/v10/projects'
+async function fetchProjects(vercelClient: Vercel) {
+    const results = []
+    let pagination = null
 
-    while (true) {
-        const response = await fetch(url, {
-            headers: {
-                Authorization: `Bearer ${userToken}`
-            }
+    do {
+        const response = await vercelClient.projects.getProjects({
+            limit: '100'
         })
 
-        if (!response.ok) {
-            throw new Error('Failed to fetch projects')
-        }
-
-        const data = await response.json()
-        results.push(...data.projects)
-
-        if (data.pagination.next === null) break
-        url = `https://api.vercel.com/v9/projects?until=${data.pagination.next}`
-    }
+        results.push(...response.projects)
+        pagination = response.pagination
+    } while (pagination?.next)
 
     // Get deployments for each project
     const projectsWithDeployments = await Promise.all(
         results.map(async (project) => {
-            const { deployments, failedCount } = await getDeployments(userToken, project.id)
+            const deploymentsResponse = await vercelClient.deployments.getDeployments({
+                projectId: project.id,
+                limit: 100 // Adjust limit as needed
+            })
+
+            const failedCount = deploymentsResponse.deployments.filter((d) => d.state === 'ERROR').length
+
             return {
                 ...project,
-                latestDeployments: deployments,
+                latestDeployments: deploymentsResponse.deployments,
                 failedDeploymentsCount: failedCount
             }
         })
@@ -44,35 +42,43 @@ async function fetchProjects(userToken: string) {
 }
 
 export async function fetchVercelData(userToken: string): Promise<VercelData> {
-    const [userResponse, projectsData, teamsResponse] = await Promise.all([
-        fetch('https://api.vercel.com/v1/user', {
-            headers: {
-                Authorization: `Bearer ${userToken}`
-            }
-        }),
-        fetchProjects(userToken),
-        fetch('https://api.vercel.com/v1/teams', {
-            headers: {
-                Authorization: `Bearer ${userToken}`
-            }
-        })
-    ])
+    console.log('Initializing Vercel client with token...')
+    const vercelClient = new Vercel({
+        bearerToken: userToken
+    })
 
-    if (!userResponse.ok) {
-        throw new Error('Invalid API token')
-    }
+    try {
+        console.log('Fetching Vercel data...')
+        const [userData, projectsData, teamsData] = await Promise.all([
+            vercelClient.user.getAuthUser({}),
+            fetchProjects(vercelClient),
+            vercelClient.teams.getTeams({})
+        ])
 
-    if (!teamsResponse.ok) {
-        throw new Error('Failed to fetch teams')
-    }
+        if (!userData?.user) {
+            throw new Error('Failed to fetch user data')
+        }
 
-    const userData = await userResponse.json()
-    const teamsData = await teamsResponse.json()
-
-    return {
-        user: userData.user,
-        projects: projectsData,
-        teams: teamsData.teams || []
+        console.log('Successfully fetched Vercel data')
+        return {
+            user: {
+                uid: userData.user.id,
+                email: userData.user.email,
+                name: userData.user.name || userData.user.username,
+                username: userData.user.username
+            },
+            projects: projectsData,
+            teams: (teamsData.teams || []).map((team) => ({
+                id: team.id,
+                name: team.name || 'Unnamed Team'
+            }))
+        }
+    } catch (error: any) {
+        console.error('Error fetching Vercel data:', error)
+        if (error?.response?.status === 401) {
+            throw new Error('Invalid API token')
+        }
+        throw new Error(`Failed to fetch Vercel data: ${error?.message || 'Unknown error'}`)
     }
 }
 
@@ -102,74 +108,4 @@ export async function saveVercelStats(stats: {
         console.error('Error saving stats:', error)
         throw new Error('Failed to save stats')
     }
-}
-
-interface VercelDeployment {
-    aliasAssigned: {
-        aliasError: { buildingAt: number } | null
-        checksConclusion: 'succeeded' | 'failed' | 'skipped' | 'canceled'
-        checksState: 'registered' | 'running' | 'completed'
-        connectBuildsEnabled: boolean
-        connectConfigurationId: string
-    } | null
-    created: number
-    createdAt: number
-    creator: object
-    customEnvironment: object
-    deleted?: number
-    expiration?: number
-    inspectorUrl: string | null
-    isRollbackCandidate: boolean | null
-    meta: object
-    name: string
-    passiveConnectConfigurationId: string
-    projectSettings: object
-    proposedExpiration?: number
-    ready?: number
-    readyState: 'BUILDING' | 'ERROR' | 'INITIALIZING' | 'QUEUED' | 'READY' | 'CANCELED' | 'DELETED'
-    readySubstate: 'STAGED' | 'PROMOTED'
-    softDeletedByRetention?: boolean
-    source: 'api-trigger-git-deploy' | 'cli' | 'clone/repo' | 'git' | 'import' | 'import/repo' | 'redeploy'
-    state: 'BUILDING' | 'ERROR' | 'INITIALIZING' | 'QUEUED' | 'READY' | 'CANCELED' | 'DELETED'
-    target: 'production' | 'staging' | null
-    type: 'LAMBDAS'
-    uid: string
-    undeleted?: number
-    url: string
-}
-export async function getDeployments(
-    userToken: string,
-    appId: string
-): Promise<{ deployments: VercelDeployment[]; failedCount: number }> {
-    let allDeployments: VercelDeployment[] = []
-    let next = true
-    let failedCount = 0
-
-    while (next) {
-        const response = await fetch(
-            `https://api.vercel.com/v6/deployments?projectId=${appId}&limit=100&until=${next}`,
-            {
-                headers: {
-                    Authorization: `Bearer ${userToken}`
-                },
-                method: 'GET'
-            }
-        )
-        if (!response.ok) {
-            throw new Error('Failed to fetch deployments')
-        }
-
-        const data = await response.json()
-        allDeployments = [...allDeployments, ...data.deployments]
-
-        // Count failed deployments
-        failedCount += data.deployments.filter(
-            (deployment: VercelDeployment) => deployment.readyState === 'ERROR'
-        ).length
-        
-        next = data.pagination?.next || null;
-        
-    }
-
-    return { deployments: allDeployments, failedCount }
 }

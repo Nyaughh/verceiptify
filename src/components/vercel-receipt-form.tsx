@@ -18,8 +18,12 @@ import { format } from 'date-fns'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { ArrowDownWideNarrow, ArrowUpWideNarrow, Text, Calendar } from 'lucide-react'
+
+// Add this line to declare the environment variable
+declare const process: { env: { NEXT_PUBLIC_VERCEL_API_TOKEN?: string } }
+
 export function VercelReceiptForm() {
-    const [userToken, setUserToken] = useState<string>('')
+    const [userToken, setUserToken] = useState<string>(process.env.NEXT_PUBLIC_VERCEL_API_TOKEN || '')
     const [vercelData, setVercelData] = useState<VercelData | null>(() => {
         if (typeof window !== 'undefined') {
             const savedData = localStorage.getItem('vercelData')
